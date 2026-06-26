@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+data
+backups
+logs
+.git
+.agents
+.codex
+.npm-cache
+npm-debug.log*
+*.local

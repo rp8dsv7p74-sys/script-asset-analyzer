@@ -1,0 +1,11 @@
+services:
+  script-asset-analyzer:
+    build: .
+    container_name: script-asset-analyzer
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./data:/app/data
