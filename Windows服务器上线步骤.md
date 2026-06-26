@@ -17,6 +17,12 @@
 - `3003`：临时测试入口，确认正式代理后可以关闭
 - `3389`：远程桌面，只建议限制为自己的 IP
 
+如果外部无法连接 `3389`、`80` 或 `3003`，先检查阿里云控制台的安全组入方向规则。安全组放行后，再进入服务器执行 Windows 防火墙脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\open-windows-firewall.ps1
+```
+
 ## 2. 上传项目
 
 推荐目录：
