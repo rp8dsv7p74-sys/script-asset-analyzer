@@ -18,7 +18,7 @@ if not exist "node_modules" (
 
 powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort 3003 -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>nul
 if errorlevel 1 (
-  start "剧本资产分析-后端" cmd /k "cd /d "%APP_DIR%" && npm.cmd run server"
+  start "剧本资产分析-后端" cmd /k "cd /d "%APP_DIR%" && set NODE_ENV=development&& npm.cmd run server"
 )
 
 powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>nul

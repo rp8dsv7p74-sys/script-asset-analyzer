@@ -19,9 +19,15 @@ const CLIENT_DIST = path.resolve(__dirname, '..', 'dist');
 const app = express();
 const jobs = new Map();
 const sessions = new Map();
+const loginAttempts = new Map();
 let storeWriteQueue = Promise.resolve();
-const APP_USERNAME = process.env.APP_USERNAME || 'admin';
-const APP_PASSWORD = process.env.APP_PASSWORD || '123456';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.APP_ENV === 'production';
+const SESSION_COOKIE = 'script_asset_session';
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 8;
+const APP_USERNAME = process.env.APP_USERNAME || (IS_PRODUCTION ? '' : 'admin');
+const APP_PASSWORD = process.env.APP_PASSWORD || (IS_PRODUCTION ? '' : '123456');
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -29,12 +35,22 @@ const upload = multer({
   }
 });
 
+validateRuntimeConfig();
+if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '5mb' }));
+app.use(applySecurityHeaders);
 
 app.use((req, _res, next) => {
   const cookies = parseCookies(req.headers.cookie || '');
-  const session = cookies.script_asset_session ? sessions.get(cookies.script_asset_session) : null;
-  req.user = session ? { username: session.username } : null;
+  const sessionId = cookies[SESSION_COOKIE];
+  const session = sessionId ? sessions.get(sessionId) : null;
+  if (session && session.expiresAt > Date.now()) {
+    req.user = { username: session.username };
+  } else {
+    if (sessionId) sessions.delete(sessionId);
+    req.user = null;
+  }
   next();
 });
 
@@ -57,15 +73,23 @@ app.get('/api/auth/me', (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   const username = String(req.body?.username || '').trim();
   const password = String(req.body?.password || '');
+  const attemptKey = `${getClientIp(req)}:${username || 'empty'}`;
+
+  if (isLoginLocked(attemptKey)) {
+    return res.status(429).json({ message: '登录尝试过多，请稍后再试。' });
+  }
 
   if (username !== APP_USERNAME || password !== APP_PASSWORD) {
+    recordLoginFailure(attemptKey);
     return res.status(401).json({ message: '账号或密码不正确。' });
   }
 
+  loginAttempts.delete(attemptKey);
   const sessionId = randomUUID();
   sessions.set(sessionId, {
     username,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    expiresAt: Date.now() + SESSION_MAX_AGE_SECONDS * 1000
   });
 
   res.setHeader('Set-Cookie', createSessionCookie(sessionId));
@@ -77,8 +101,8 @@ app.post('/api/auth/login', (req, res) => {
 
 app.post('/api/auth/logout', (req, res) => {
   const cookies = parseCookies(req.headers.cookie || '');
-  if (cookies.script_asset_session) sessions.delete(cookies.script_asset_session);
-  res.setHeader('Set-Cookie', 'script_asset_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+  if (cookies[SESSION_COOKIE]) sessions.delete(cookies[SESSION_COOKIE]);
+  res.setHeader('Set-Cookie', createExpiredSessionCookie());
   res.json({ ok: true });
 });
 
@@ -293,6 +317,8 @@ app.get('*', (_req, res) => {
   });
 });
 
+setInterval(cleanupRuntimeState, 60 * 60 * 1000).unref();
+
 async function extractText(file, extension) {
   if (extension === '.docx') {
     const result = await mammoth.extractRawText({ buffer: file.buffer });
@@ -327,9 +353,73 @@ function parseCookies(cookieHeader) {
   );
 }
 
+function applySecurityHeaders(_req, res, next) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+  );
+  next();
+}
+
 function createSessionCookie(sessionId) {
-  const maxAge = 60 * 60 * 24 * 7;
-  return `script_asset_session=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+  const secure = IS_PRODUCTION ? '; Secure' : '';
+  return `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_MAX_AGE_SECONDS}${secure}`;
+}
+
+function createExpiredSessionCookie() {
+  const secure = IS_PRODUCTION ? '; Secure' : '';
+  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure}`;
+}
+
+function getClientIp(req) {
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function isLoginLocked(key) {
+  const attempt = loginAttempts.get(key);
+  if (!attempt) return false;
+  if (Date.now() - attempt.firstAt > LOGIN_WINDOW_MS) {
+    loginAttempts.delete(key);
+    return false;
+  }
+  return attempt.count >= LOGIN_MAX_ATTEMPTS;
+}
+
+function recordLoginFailure(key) {
+  const current = loginAttempts.get(key);
+  if (!current || Date.now() - current.firstAt > LOGIN_WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, firstAt: Date.now() });
+    return;
+  }
+  current.count += 1;
+}
+
+function validateRuntimeConfig() {
+  if (!IS_PRODUCTION) return;
+  const problems = [];
+  if (!APP_USERNAME) problems.push('APP_USERNAME 未设置');
+  if (!APP_PASSWORD) problems.push('APP_PASSWORD 未设置');
+  if (APP_USERNAME === 'admin') problems.push('APP_USERNAME 不能使用默认 admin');
+  if (APP_PASSWORD === '123456') problems.push('APP_PASSWORD 不能使用默认 123456');
+  if (APP_PASSWORD && APP_PASSWORD.length < 12) problems.push('APP_PASSWORD 至少需要 12 位');
+  if (!process.env.QWEN_API_KEY) problems.push('QWEN_API_KEY 未设置');
+  if (problems.length) {
+    throw new Error(`生产环境配置不安全：${problems.join('；')}`);
+  }
+}
+
+function cleanupRuntimeState() {
+  const now = Date.now();
+  for (const [sessionId, session] of sessions) {
+    if (!session || session.expiresAt <= now) sessions.delete(sessionId);
+  }
+  for (const [key, attempt] of loginAttempts) {
+    if (!attempt || now - attempt.firstAt > LOGIN_WINDOW_MS) loginAttempts.delete(key);
+  }
 }
 
 function requireAuth(req, res, next) {
