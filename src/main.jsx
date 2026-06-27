@@ -22,7 +22,6 @@ import {
   UploadCloud
 } from 'lucide-react';
 import './styles.css';
-import creativeBurst from './assets/creative-film-burst.png';
 
 const MODEL_STORAGE_KEY = 'script-asset-selected-model';
 const CUSTOM_MODEL_STORAGE_KEY = 'script-asset-custom-model';
@@ -686,7 +685,16 @@ function App() {
             </div>
 
             <div className="home-visual">
-              <img src={creativeBurst} alt="" />
+              <div className="creative-burst" aria-hidden="true">
+                <div className="burst-frame">
+                  <span className="burst-dot dot-one" />
+                  <span className="burst-dot dot-two" />
+                  <span className="burst-dot dot-three" />
+                  <span className="burst-ticket ticket-one" />
+                  <span className="burst-ticket ticket-two" />
+                  <Clapperboard size={72} />
+                </div>
+              </div>
               <div className="spark-card one">角色归并</div>
               <div className="spark-card two">场次追踪</div>
               <div className="spark-card three">服装资产</div>
@@ -783,7 +791,10 @@ function App() {
           </div>
 
           <div className="creative-card">
-            <img src={creativeBurst} alt="" />
+            <div className="creative-card-art" aria-hidden="true">
+              <Clapperboard size={38} />
+              <span />
+            </div>
             <div>
               <span>创意引擎</span>
               <strong>剧本资产灵感台</strong>

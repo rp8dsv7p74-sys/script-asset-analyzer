@@ -135,13 +135,86 @@ button:disabled {
   place-items: center;
 }
 
-.home-visual img {
+.creative-burst {
+  display: grid;
   width: min(420px, 66vw);
   max-width: 100%;
+  aspect-ratio: 1.25;
+  place-items: center;
   border: 2px solid #1e2420;
   border-radius: 8px;
+  background:
+    radial-gradient(circle at 16% 20%, #9cff6e 0 12%, transparent 13%),
+    radial-gradient(circle at 82% 24%, #ffd200 0 11%, transparent 12%),
+    radial-gradient(circle at 74% 78%, #00c9ff 0 13%, transparent 14%),
+    linear-gradient(135deg, #ff6f91 0 34%, #fff8df 34% 58%, #7d5cff 58% 100%);
   box-shadow: 8px 8px 0 #1e2420;
   transform: rotate(-3deg);
+}
+
+.burst-frame {
+  position: relative;
+  display: grid;
+  width: 62%;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid #1e2420;
+  border-radius: 999px;
+  color: #1e2420;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 5px 5px 0 #1e2420;
+}
+
+.burst-dot,
+.burst-ticket {
+  position: absolute;
+  display: block;
+  border: 2px solid #1e2420;
+}
+
+.burst-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.dot-one {
+  top: 12%;
+  left: -7%;
+  background: #00c9ff;
+}
+
+.dot-two {
+  right: 8%;
+  bottom: -9%;
+  background: #9cff6e;
+}
+
+.dot-three {
+  right: -10%;
+  top: 28%;
+  background: #ffd200;
+}
+
+.burst-ticket {
+  width: 54px;
+  height: 34px;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(30, 36, 32, 0.14) 8px 11px),
+    #ffffff;
+}
+
+.ticket-one {
+  left: -18%;
+  bottom: 16%;
+  transform: rotate(-18deg);
+}
+
+.ticket-two {
+  right: -18%;
+  top: 12%;
+  transform: rotate(16deg);
 }
 
 .spark-card {
@@ -441,13 +514,31 @@ p {
   box-shadow: 4px 4px 0 #1e2420;
 }
 
-.creative-card img {
+.creative-card-art {
+  position: relative;
+  display: grid;
   width: 112px;
   height: 92px;
-  object-fit: cover;
+  place-items: center;
   border: 2px solid #1e2420;
   border-radius: 7px;
-  background: #fff8df;
+  color: #1e2420;
+  background:
+    radial-gradient(circle at 20% 20%, #9cff6e 0 16%, transparent 17%),
+    radial-gradient(circle at 82% 76%, #00c9ff 0 18%, transparent 19%),
+    linear-gradient(135deg, #ffd200, #ff6f91);
+}
+
+.creative-card-art span {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  width: 28px;
+  height: 16px;
+  border: 2px solid #1e2420;
+  border-radius: 5px;
+  background: #ffffff;
+  transform: rotate(-10deg);
 }
 
 .creative-card span {
