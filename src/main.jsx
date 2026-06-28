@@ -126,7 +126,7 @@ function App() {
   const [customModel, setCustomModel] = useState(() => getStoredValue(CUSTOM_MODEL_STORAGE_KEY));
   const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState(null);
-  const [loginForm, setLoginForm] = useState({ username: 'admin', password: '' });
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [files, setFiles] = useState([]);
